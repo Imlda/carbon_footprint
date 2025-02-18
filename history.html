@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbon Footprint History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f8ff;
+        }
+        nav {
+            background-color: #007BFF;
+            padding: 10px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .history-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .history {
+            margin-top: 20px;
+        }
+        .history-period {
+            margin-top: 10px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="history.html">View History</a>
+    </nav>
+
+    <h1>Carbon Footprint History</h1>
+    <div class="history-controls">
+        <button onclick="viewHistory('yesterday')">Yesterday</button>
+        <button onclick="viewHistory('1_week')">1 Week Ago</button>
+        <button onclick="viewHistory('1_month')">1 Month Ago</button>
+        <button onclick="viewHistory('1_year')">1 Year Ago</button>
+    </div>
+    <div id="history-display"></div>
+    <script>
+        const history = JSON.parse(localStorage.getItem('history')) || {};
+
+        function viewHistory(period) {
+            const historyDisplay = document.getElementById('history-display');
+            historyDisplay.innerHTML = '';
+
+            const date = new Date();
+            let startDate;
+            let periodLabel;
+
+            // Calculate the start date based on the period
+            switch (period) {
+                case 'yesterday':
+                    startDate = new Date(date.setDate(date.getDate() - 1));
+                    periodLabel = "Yesterday";
+                    break;
+                case '1_week':
+                    startDate = new Date(date.setDate(date.getDate() - 7));
+                    periodLabel = "Last 7 Days";
+                    break;
+                case '1_month':
+                    startDate = new Date(date.setMonth(date.getMonth() - 1));
+                    periodLabel = "Last 1 Month";
+                    break;
+                case '1_year':
+                    startDate = new Date(date.setFullYear(date.getFullYear() - 1));
+                    periodLabel = "Last 1 Year";
+                    break;
+                default:
+                    historyDisplay.innerHTML = `<p>Invalid period selected.</p>`;
+                    return;
+            }
+
+            const endDate = new Date(); // Current date
+            const totals = {
+                transportation: 0,
+                food: 0,
+                waste: 0,
+                total: 0,
+            };
+
+            // Sum up emissions for all days in the range
+            while (startDate <= endDate) {
+                const dateKey = startDate.toISOString().split('T')[0];
+                if (history[dateKey]) {
+                    totals.transportation += history[dateKey].transportation || 0;
+                    totals.food += history[dateKey].food || 0;
+                    totals.waste += history[dateKey].waste || 0;
+                    totals.total += history[dateKey].total || 0;
+                }
+                startDate.setDate(startDate.getDate() + 1); // Move to the next day
+            }
+
+            // Display the totals for the selected period
+            historyDisplay.innerHTML = `
+                <div class="history-period">
+                    <h3>${periodLabel} Totals</h3>
+                    <p>Transportation: ${totals.transportation.toFixed(2)} kg CO₂</p>
+                    <p>Food: ${totals.food.toFixed(2)} kg CO₂</p>
+                    <p>Waste: ${totals.waste.toFixed(2)} kg CO₂</p>
+                    <p>Total: ${totals.total.toFixed(2)} kg CO₂</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

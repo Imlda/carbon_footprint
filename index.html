@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbon Footprint Diary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        nav {
+            background-color: #007BFF;
+            padding: 10px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+        }
+        #diary-form {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        textarea, select, input, button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        #diary-entries {
+            margin-top: 20px;
+        }
+        .entry {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        footer {
+            background-color: #f1f1f1;
+            padding: 10px;
+            text-align: center;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="history.html">View History</a>
+    </nav>
+
+    <h1>Carbon Footprint Diary</h1>
+    <form id="diary-form" onsubmit="addDiaryEntry(event)">
+        <div id="input-section">
+            <textarea id="entry-input" placeholder="Write about your day..."></textarea>
+        </div>
+        <div id="details-section">
+            <select id="activity-type" onchange="updateDetailInputs()">
+                <option value="" disabled selected>Select Activity</option>
+                <option value="transportation">Transportation</option>
+                <option value="food">Food</option>
+                <option value="waste">Waste</option>
+            </select>
+            <div id="additional-details"></div>
+            <button type="submit">Add Entry</button>
+        </div>
+    </form>
+    <div id="diary-entries"></div>
+
+    <footer>
+        <div id="footer-total">Today's Total Carbon Emission: 0 kg CO₂</div>
+    </footer>
+
+    <script>
+        const diaryEntries = JSON.parse(localStorage.getItem('currentEntries')) || [];
+        let totalCarbonEmission = JSON.parse(localStorage.getItem('currentTotal')) || 0;
+        const history = JSON.parse(localStorage.getItem('history')) || {};
+        const today = new Date().toISOString().split('T')[0];
+
+        if (!history[today]) {
+            history[today] = { transportation: 0, food: 0, waste: 0, total: 0 };
+        }
+
+        function updateDetailInputs() {
+            const type = document.getElementById('activity-type').value;
+            const additionalDetails = document.getElementById('additional-details');
+            additionalDetails.innerHTML = ''; // Clear previous inputs
+
+            if (type === 'transportation') {
+                additionalDetails.innerHTML = `
+                    <label>Type of Vehicle:</label>
+                    <select id="vehicle-type">
+                        <option value="car">Car</option>
+                        <option value="bike">Bike</option>
+                        <option value="bus">Bus</option>
+                    </select>
+                    <label>Distance (km):</label>
+                    <input type="number" id="distance" placeholder="Enter distance">
+                `;
+            } else if (type === 'food') {
+                additionalDetails.innerHTML = `
+                    <label>Type of Food:</label>
+                    <select id="food-type">
+                        <option value="beef">Beef</option>
+                        <option value="chicken">Chicken</option>
+                        <option value="vegetables">Vegetables</option>
+                    </select>
+                    <label>Weight (grams):</label>
+                    <input type="number" id="food-weight" placeholder="Enter weight in grams">
+                `;
+            } else if (type === 'waste') {
+                additionalDetails.innerHTML = `
+                    <label>Type of Waste:</label>
+                    <select id="waste-type">
+                        <option value="plastic">Plastic</option>
+                        <option value="paper">Paper</option>
+                        <option value="glass">Glass</option>
+                    </select>
+                    <label>Weight (kg):</label>
+                    <input type="number" id="waste-weight" placeholder="Enter weight in kg">
+                `;
+            }
+        }
+
+        async function addDiaryEntry(event) {
+            event.preventDefault();
+
+            const entryText = document.getElementById('entry-input').value.trim();
+            const activityType = document.getElementById('activity-type').value;
+            if (!entryText || !activityType) {
+                alert("Please write an entry and select an activity.");
+                return;
+            }
+
+            let emission = 0;
+            let details = {};
+
+            if (activityType === 'transportation') {
+                const vehicleType = document.getElementById('vehicle-type').value;
+                const distance = parseFloat(document.getElementById('distance').value) || 0;
+                emission = getCarbonEmission('transportation', { mode: vehicleType, distance });
+                history[today].transportation += emission;
+                details = { vehicleType, distance };
+            } else if (activityType === 'food') {
+                const foodType = document.getElementById('food-type').value;
+                const weight = parseFloat(document.getElementById('food-weight').value) || 0;
+                emission = getCarbonEmission('food', { foodType, weight });
+                history[today].food += emission;
+                details = { foodType, weight };
+            } else if (activityType === 'waste') {
+                const wasteType = document.getElementById('waste-type').value;
+                const weight = parseFloat(document.getElementById('waste-weight').value) || 0;
+                emission = getCarbonEmission('waste', { wasteType, weight });
+                history[today].waste += emission;
+                details = { wasteType, weight };
+            }
+
+            history[today].total += emission;
+            totalCarbonEmission += emission;
+
+            diaryEntries.push({ text: entryText, type: activityType, emission, details });
+            saveData();
+            displayEntries();
+        }
+
+        function getCarbonEmission(type, data) {
+            const mockData = {
+                transportation: data.distance * (data.mode === 'car' ? 0.21 : data.mode === 'bike' ? 0.1 : 0.05),
+                food: (data.foodType === 'beef' ? 27 : data.foodType === 'chicken' ? 6.9 : 2) * (data.weight / 1000),
+                waste: data.weight * (data.wasteType === 'plastic' ? 6 : data.wasteType === 'paper' ? 1.5 : 0.85)
+            };
+            return mockData[type] || 0;
+        }
+
+        function saveData() {
+            localStorage.setItem('currentEntries', JSON.stringify(diaryEntries));
+            localStorage.setItem('currentTotal', JSON.stringify(totalCarbonEmission));
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+
+        function displayEntries() {
+            const diaryEntriesContainer = document.getElementById('diary-entries');
+            diaryEntriesContainer.innerHTML = '';
+
+            diaryEntries.forEach((entry, index) => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'entry';
+                entryDiv.innerHTML = `
+                    <h3>Entry ${index + 1} (${entry.type})</h3>
+                    <p>${entry.text}</p>
+                    <p><strong>Details:</strong> ${JSON.stringify(entry.details)}</p>
+                    <p><strong>Carbon Emission:</strong> ${entry.emission.toFixed(2)} kg CO₂</p>
+                `;
+                diaryEntriesContainer.appendChild(entryDiv);
+            });
+
+            document.getElementById('footer-total').textContent = `Today's Total Carbon Emission: ${totalCarbonEmission.toFixed(2)} kg CO₂`;
+        }
+
+        displayEntries();
+    </script>
+</body>
+</html>
